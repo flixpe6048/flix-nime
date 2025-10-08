@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Detalle de Película</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #backdrop {
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .image-loader {
+      position: relative;
+      overflow: hidden;
+      background: #1f2937;
+    }
+    .image-loader::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.1) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite linear;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .fade-in.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-black text-white font-sans">
+
+  <div id="backdrop" class="relative h-[450px] w-full image-loader">
+    <div class="absolute bottom-0 left-0 right-0 h-80 bg-gradient-to-t from-black to-transparent z-10"></div>
+  </div>
+
+  <div class="flex justify-center -mt-60 z-30 relative fade-in">
+    <div class="h-24 w-48 rounded image-loader" id="logo-container">
+      <img id="logo" class="h-24 object-contain hidden" alt="Logo de la película"/>
+    </div>
+  </div>
+
+  <div class="p-4 max-w-xl mx-auto z-20 relative fade-in">
+    <h1 id="title" class="text-2xl font-bold mb-1">Cargando...</h1>
+    <div id="meta" class="flex items-center space-x-2 text-sm mb-1 text-gray-300">
+      <span id="year">----</span>
+      <span class="bg-gray-700 px-2 rounded text-white">PG-13</span>
+    </div>
+
+    <div class="space-y-2 mt-4">
+      <button id="btnVer" class="w-full bg-white text-black font-bold py-2 rounded flex justify-center items-center gap-2 transition hover:bg-gray-300">
+        <i data-lucide="play" class="w-5 h-5"></i> Ver
+      </button>
+      <button id="btnDescargar" class="w-full bg-gray-800 border border-white text-white font-medium py-2 rounded flex justify-center items-center gap-2 transition hover:bg-gray-700">
+        <i data-lucide="download" class="w-5 h-5"></i> Descargar
+      </button>
+    </div>
+
+    <p id="overview" class="text-sm text-gray-400 mt-4"></p>
+    <p class="text-sm text-gray-500 mt-2"><strong>Reparto:</strong> <span id="cast">Cargando...</span></p>
+    <p class="text-sm text-gray-500 mt-2"><strong>Director:</strong> <span id="director">Cargando...</span></p>
+    <p class="text-sm text-gray-500 mt-2"><strong>Géneros:</strong> <span id="genres">Cargando...</span></p>
+
+    <div class="flex items-center justify-around mt-5 text-xs text-gray-300 relative space-x-4">
+      <button id="btnMiLista" class="flex flex-col items-center" onclick="toggleLista()">
+        <i id="iconMiLista" data-lucide="plus" class="w-5 h-5 mb-1"></i> Mi Lista
+      </button>
+      <button class="flex flex-col items-center" onclick="alert('Función de calificar próximamente')">
+        <i data-lucide="thumbs-up" class="w-5 h-5 mb-1"></i> Calificar
+      </button>
+      <button class="flex flex-col items-center" onclick="navigator.share?.({ url: location.href })">
+        <i data-lucide="share-2" class="w-5 h-5 mb-1"></i> Compartir
+      </button>
+    </div>
+
+    <div class="my-4 h-px bg-gray-600"></div>
+
+    <h3 class="text-lg font-semibold mb-3">Tráilers</h3>
+    <div id="trailers" class="space-y-6"></div>
+  </div>
+
+  <script>
+    const API_KEY = 'f91aff7a5c1524c5db2d8b5864747dd6';
+    const MOVIE_ID = 581392;
+    const LS_KEY = `pelicula_${MOVIE_ID}_vista`;
+    const LS_LISTA_KEY = `pelicula_${MOVIE_ID}_lista`;
+
+    async function cargarDatos() {
+      const [info, videos, credits, images] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}?api_key=${API_KEY}&language=es-ES`).then(r => r.json()),
+        fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/videos?api_key=${API_KEY}&language=es-ES`).then(r => r.json()),
+        fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/credits?api_key=${API_KEY}&language=es-ES`).then(r => r.json()),
+        fetch(`https://api.themoviedb.org/3/movie/${MOVIE_ID}/images?api_key=${API_KEY}`).then(r => r.json()),
+      ]);
+
+      document.getElementById('title').textContent = info.title;
+      document.getElementById('year').textContent = info.release_date?.slice(0,4);
+      document.getElementById('overview').textContent = info.overview || 'Sin descripción.';
+      document.getElementById('genres').textContent = info.genres.map(g => g.name).join(', ') || 'N/A';
+
+      const castNames = credits.cast.slice(0, 4).map(a => a.name).join(', ');
+      const director = credits.crew.find(p => p.job === 'Director');
+      document.getElementById('cast').textContent = castNames;
+      document.getElementById('director').textContent = director?.name || 'No disponible';
+
+      // Fondo
+      if (info.backdrop_path) {
+        const img = new Image();
+        img.src = `https://image.tmdb.org/t/p/original${info.backdrop_path}`;
+        img.onload = () => {
+          document.getElementById('backdrop').style.backgroundImage = `url(${img.src})`;
+          document.getElementById('backdrop').classList.remove('image-loader');
+        };
+      }
+
+      // Logo
+      const logo = images.logos.find(l => l.iso_639_1 === 'es') || images.logos[0];
+      if (logo) {
+        const logoEl = document.getElementById('logo');
+        logoEl.src = `https://image.tmdb.org/t/p/original${logo.file_path}`;
+        logoEl.onload = () => {
+          logoEl.classList.remove('hidden');
+          document.getElementById('logo-container').classList.remove('image-loader');
+        };
+      }
+
+      // Tráilers
+      const trailers = videos.results.filter(v => v.site === 'YouTube');
+      const cont = document.getElementById('trailers');
+      if (trailers.length === 0) {
+        cont.innerHTML = '<p>No hay tráilers disponibles.</p>';
+      } else {
+        cont.innerHTML = trailers.map(v => `
+          <div>
+            <h4 class="font-medium mb-1">${v.name}</h4>
+            <div class="aspect-w-16 aspect-h-9">
+              <iframe class="w-full rounded-lg" src="https://www.youtube.com/embed/${v.key}" frameborder="0" allowfullscreen></iframe>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      actualizarBotonVer();
+      actualizarIconoLista();
+      lucide.createIcons();
+      document.querySelectorAll('.fade-in').forEach(e => e.classList.add('show'));
+    }
+
+    document.getElementById('btnVer').addEventListener('click', () => {
+      localStorage.setItem(LS_KEY, '1');
+      window.location.href = `https://zuki-go.github.io/TV/HORIZONTAL.html?link=https://zuki-go.github.io/TV/flixpe.html?linkmp4=https%3A%2F%2Fhugh.cdn.rumble.cloud%2Fvideo%2Fs8%2F2%2FD%2Fz%2FD%2F2%2FDzD2v.aaa.mp4&titulo=Pen%C3%ADnsula&sig=go%3A581392&capitulos=go%3A581392&poster=https%3A%2F%2Fimage.tmdb.org%2Ft%2Fp%2Foriginal%2FnrGIZEhaTt5GrIYRvFW4cMWY8du.jpg&intro=45`;
+    });
+
+    document.getElementById('btnDescargar').addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.href = 'https://hugh.cdn.rumble.cloud/video/s8/2/D/z/D/2/DzD2v.aaa.mp4';
+    link.download = 'video.mp4';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    });
+
+    function actualizarBotonVer() {
+      const visto = localStorage.getItem(LS_KEY);
+      const btn = document.getElementById('btnVer');
+      btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> ${visto ? 'Continuar viendo' : 'Ver'}`;
+    }
+
+    function toggleLista() {
+      const actual = localStorage.getItem(LS_LISTA_KEY) === '1';
+      localStorage.setItem(LS_LISTA_KEY, actual ? '0' : '1');
+      actualizarIconoLista();
+    }
+
+    function actualizarIconoLista() {
+      const icon = document.getElementById('iconMiLista');
+      const enLista = localStorage.getItem(LS_LISTA_KEY) === '1';
+      icon.setAttribute('data-lucide', enLista ? 'check' : 'plus');
+      lucide.createIcons();
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>
