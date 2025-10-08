@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Detalle de Serie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    #backdrop {
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .image-loader {
+      position: relative;
+      overflow: hidden;
+      background: #1f2937;
+    }
+
+    .image-loader::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.1) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite linear;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .fade-in {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .fade-in.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .popup-anim {
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.3s ease;
+    }
+
+    .popup-anim.show {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .text-ellipsis-2 {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    button.episode-disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    a.download-disabled {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    /* Nuevo estilo para el texto debajo del botón de temporada */
+    #ultimoVisto {
+      margin-top: 0.25rem;
+      color: #8b5cf6; /* color morado */
+      font-weight: 600;
+      font-size: 0.875rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    #ultimoVisto.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Mensaje corto cuando se agrega/quita de favoritos */
+    #msgLista {
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      color: #a78bfa;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      text-align: center;
+    }
+    #msgLista.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Estilo para botón activo */
+    .mi-lista-activo {
+      color: #a855f7;
+    }
+
+    /* --- Animación simple para el icono de "Mi Lista" --- */
+    @keyframes icon-bounce {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.25); }
+      60%  { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+    .icon-bounce {
+      animation: icon-bounce 360ms ease;
+      transform-origin: center center;
+    }
+  </style>
+</head>
+<body class="bg-black text-white font-sans">
+
+  <div id="backdrop" class="relative h-[450px] w-full image-loader">
+    <div class="absolute bottom-0 left-0 right-0 h-80 bg-gradient-to-t from-black to-transparent z-10"></div>
+  </div>
+
+  <div class="flex justify-center -mt-60 z-30 relative fade-in">
+    <div class="h-24 w-48 rounded image-loader" id="logo-container">
+      <img id="logo" class="h-24 object-contain hidden" alt="Logo de la serie"/>
+    </div>
+  </div>
+
+  <div class="p-4 max-w-xl mx-auto z-20 relative fade-in">
+    <h1 id="title" class="text-2xl font-bold mb-1">Cargando...</h1>
+    <div id="meta" class="flex items-center space-x-2 text-sm mb-1 text-gray-300">
+      <span id="year">----</span>
+      <span class="bg-gray-700 px-2 rounded text-white">TV-MA</span>
+      <span id="seasons">-- temporadas</span>
+    </div>
+
+    <div class="text-sm text-red-500 font-semibold mb-3 flex items-center gap-1">
+      <i data-lucide="flame" class="w-4 h-4"></i>
+      N.º 6 en TV hoy
+    </div>
+
+    <div class="space-y-2">
+      <button id="btnVer" class="w-full bg-white text-black font-bold py-2 rounded flex justify-center items-center gap-2 transition hover:bg-gray-300">
+        <i data-lucide="play" class="w-5 h-5"></i> Ver
+      </button>
+      <button id="btnDescargar" class="w-full bg-gray-800 border border-white text-white font-medium py-2 rounded flex justify-center items-center gap-2 transition hover:bg-gray-700">
+        <i data-lucide="download" class="w-5 h-5"></i> Descargar
+      </button>
+    </div>
+
+    <p id="overview" class="text-sm text-gray-400 mt-4 line-clamp-1"></p>
+    <p class="text-sm text-gray-500 mt-2 line-clamp-3"><strong>Protagonistas:</strong> <span id="cast">Cargando...</span></p>
+    <p class="text-sm text-gray-500 mt-2 line-clamp-3"><strong>Creado por:</strong> <span id="creators">Cargando...</span></p>
+    <p class="text-sm text-gray-500 mt-2 line-clamp-3"><strong>Géneros:</strong> <span id="genres">Cargando...</span></p>
+
+    <div class="flex items-center justify-around mt-5 text-xs text-gray-300 relative space-x-4">
+      <!-- quitado onclick inline para evitar doble disparo -->
+      <button id="btnMiLista" aria-pressed="false" class="flex flex-col items-center transform transition-transform duration-200 hover:scale-105 hover:shadow-lg">
+        <i id="iconMiLista" data-lucide="plus" class="w-5 h-5 mb-1"></i> <span id="textMiLista">Mi Lista</span>
+      </button>
+      <button id="btnCalificar" class="flex flex-col items-center transform transition-transform duration-200 hover:scale-105 hover:shadow-lg" onclick="mostrarPopupCalificar()">
+        <i id="iconCalificar" data-lucide="thumbs-up" class="w-5 h-5 mb-1"></i> Calificar
+      </button>
+      <button class="flex flex-col items-center transform transition-transform duration-200 hover:scale-105 hover:shadow-lg" onclick="window.location.href='http://action_share'">
+        <i data-lucide="share-2" class="w-5 h-5 mb-1"></i> Compartir
+      </button>
+    </div>
+
+    <div id="msgLista" role="status" aria-live="polite"></div>
+    <div id="ultimoVisto"></div>
+
+    <div class="my-4 h-px bg-gray-600"></div>
+
+    <div class="w-full flex mb-2">
+      <button id="btnEpisodios" class="w-1/2 text-center py-2 border-b-2 border-transparent text-white font-medium transition">Capítulos</button>
+      <button id="btnTrailers" class="w-1/2 text-center py-2 border-b-2 border-transparent text-white font-medium transition">Tráilers</button>
+    </div>
+
+    <div class="relative mb-1">
+      <button id="btnTemporadas" class="w-full bg-gray-800 border border-gray-700 py-2 rounded flex justify-between items-center text-white hover:bg-gray-700">
+        <span id="temporadaSeleccionada">Temporada 1</span>
+        <i data-lucide="chevron-down" class="w-5 h-5"></i>
+      </button>
+      <div id="listaTemporadas" class="absolute top-full mt-1 w-full bg-gray-900 rounded shadow-lg hidden z-20"></div>
+    </div>
+
+    <div id="contenidoEpisodios" class="text-sm text-gray-300"></div>
+    <div id="contenidoTrailers" class="text-sm text-gray-300 hidden"></div>
+  </div>
+
+  <script>
+    // URLs para reproducción (ejemplo)
+    const episodeUrls = {
+      "1": {
+        "1": "https://nagi-plus4.github.io/generador/REP-PRUEVA.html?linkmp4=https%3A%2F%2Fhugh.cdn.rumble.cloud%2Fvideo%2Ffww1%2F4c%2Fs8%2F2%2F0%2F8%2Fs%2Fc%2F08scz.aaa.mp4&titulo=Sakamoto+Days+%28T1+-+E1%29&sig=go%3A207332&capitulos=go%3A207332&poster=https%3A%2F%2Fimage.tmdb.org%2Ft%2Fp%2Foriginal%2F8mzJg0n2ZggznEnTbA6KfjHETMI.jpg&intro=250",
+        
+        "2": "https://nagi-plus4.github.io/generador/REP-PRUEVA.html?linkmp4=https%3A%2F%2F1a-1791.com%2Fvideo%2Ffww1%2Fbb%2Fs8%2F2%2Fc%2Fa%2Ft%2Fc%2Fcatcz.aaa.mp4&titulo=Sakamoto+Days+%28T1+-+E2%29&sig=go%3A207332&capitulos=go%3A207332&poster=https%3A%2F%2Fimage.tmdb.org%2Ft%2Fp%2Foriginal%2FoEE5uaOpal0SleMPXy8mRxyusgw.jpg&intro=115",
+        
+        "3": "",
+        
+        "4": "",
+        
+        "5": "",
+        
+        "6": "",
+        
+        "7": "",
+        
+        "8": "",
+        
+
+
+        "9": "",
+        
+        "10": "",
+        
+        "11": "",
+        
+        "12": "",
+       
+      },
+      "2": {
+        "1": "",
+        "2": "",
+      },
+      "3": {
+        "1": "",
+        "2": "",
+        "3": "",
+      },
+    };
+
+
+    const episodeDownloadUrls = {
+      "1": {
+        "1": "https://hugh.cdn.rumble.cloud/video/fww1/e1/s8/2/2/O/Q/1/2OQ1y.aaa.mp4",
+        "2": "https://1a-1791.com/video/fww1/2b/s8/2/I/K/R/1/IKR1y.aaa.mp4",
+        "3": "https://hugh.cdn.rumble.cloud/video/fww1/2f/s8/2/y/E/R/2/yER2y.aaa.mp4",
+        "4": "https://1a-1791.com/video/fww1/2b/s8/2/m/R/X/4/mRX4y.aaa.mp4",
+      },
+      "2": {
+        "1": "https://example.com/downloads/video2-1.mp4",
+        "2": "https://example.com/downloads/video2-2.mp4",
+      },
+      "3": {
+        "1": "https://example.com/downloads/video3-1.mp4",
+        "2": "https://example.com/downloads/video3-2.mp4",
+        "3": "https://example.com/downloads/video3-3.mp4",
+      },
+    };
+
+    // Elementos
+    const btnEpisodios = document.getElementById('btnEpisodios');
+    const btnTrailers = document.getElementById('btnTrailers');
+    const btnTemporadas = document.getElementById('btnTemporadas');
+    const listaTemporadas = document.getElementById('listaTemporadas');
+    const temporadaSeleccionada = document.getElementById('temporadaSeleccionada');
+    const contenidoEpisodios = document.getElementById('contenidoEpisodios');
+    const contenidoTrailers = document.getElementById('contenidoTrailers');
+    const btnVer = document.getElementById('btnVer');
+    const btnDescargar = document.getElementById('btnDescargar');
+    const ultimoVistoDiv = document.getElementById('ultimoVisto');
+    const btnMiLista = document.getElementById('btnMiLista');
+    const iconMiLista = document.getElementById('iconMiLista');
+    const textMiLista = document.getElementById('textMiLista');
+    const msgLista = document.getElementById('msgLista');
+
+    let numeroTemporadas = 1;
+    let fechaEstreno = '';
+    const API_KEY = 'f91aff7a5c1524c5db2d8b5864747dd6';
+    // REEMPLAZA ID si necesitas
+    const SERIES_ID = 207332;
+
+    // localStorage keys
+    const LS_KEY = `serie_${SERIES_ID}_ultimo_visto`;
+    const LS_FAVORITOS_KEY = "favoritos";
+
+    // Guarda último visto
+    function guardarUltimoVisto(temporada, episodio) {
+      localStorage.setItem(LS_KEY, JSON.stringify({ temporada, episodio }));
+    }
+    function leerUltimoVisto() {
+      const data = localStorage.getItem(LS_KEY);
+      if (!data) return null;
+      try { return JSON.parse(data); } catch { return null; }
+    }
+
+    // FAVORITOS: mantener en la misma key que tu página favoritos.html
+    function obtenerFavoritos() {
+      try {
+        return JSON.parse(localStorage.getItem(LS_FAVORITOS_KEY) || "[]");
+      } catch {
+        return [];
+      }
+    }
+    function guardarFavoritos(lista) {
+      localStorage.setItem(LS_FAVORITOS_KEY, JSON.stringify(lista));
+    }
+
+    // ¿Esta serie en favoritos?
+    function leerMiLista() {
+      const favs = obtenerFavoritos();
+      return favs.some(f => Number(f.id) === Number(SERIES_ID) && (f.type === "tv" || f.type === "series" || f.type === "serie" || f.type === "tv_show"));
+    }
+
+    // ---------- REEMPLAZADA: actualizarMiListaIcon() con manejo de SVG + animación ----------
+    function actualizarMiListaIcon() {
+      const agregado = leerMiLista();
+
+      // Buscar el elemento actual dentro del botón (svg renderizado por Lucide o <i> original)
+      let icon = btnMiLista.querySelector('svg') || btnMiLista.querySelector('[data-lucide]');
+
+      if (icon && icon.tagName.toLowerCase() === 'svg') {
+        // Si ya existe el <svg>, lo reemplazamos por un placeholder <i> con el data-lucide correcto
+        const nuevo = document.createElement('i');
+        nuevo.id = 'iconMiLista';
+        nuevo.className = 'w-5 h-5 mb-1';
+        nuevo.setAttribute('data-lucide', agregado ? 'check' : 'plus');
+        icon.replaceWith(nuevo);
+      } else if (icon) {
+        // Si todavía es <i>, solo actualizamos el atributo
+        icon.setAttribute('data-lucide', agregado ? 'check' : 'plus');
+      } else {
+        // Si no existe nada, lo creamos
+        const nuevo = document.createElement('i');
+        nuevo.id = 'iconMiLista';
+        nuevo.className = 'w-5 h-5 mb-1';
+        nuevo.setAttribute('data-lucide', agregado ? 'check' : 'plus');
+        btnMiLista.prepend(nuevo);
+      }
+
+      // Accesibilidad y texto (mantiene tu lógica)
+      btnMiLista.setAttribute('aria-pressed', agregado ? 'true' : 'false');
+      if (agregado) {
+        btnMiLista.classList.add('mi-lista-activo');
+        textMiLista.textContent = 'En Mi Lista';
+      } else {
+        btnMiLista.classList.remove('mi-lista-activo');
+        textMiLista.textContent = 'Mi Lista';
+      }
+
+      // Re-renderiza icons (Lucide convertirá el <i data-lucide> en <svg>)
+      lucide.createIcons();
+
+      // Selecciona el svg resultante y aplica la animación
+      const rendered = btnMiLista.querySelector('svg') || btnMiLista.querySelector('[data-lucide]');
+      if (rendered) {
+        // Forzar reflow para permitir reaplicar la animación si se pulsa rápido
+        void rendered.offsetWidth;
+        rendered.classList.add('icon-bounce');
+        setTimeout(() => {
+          rendered.classList.remove('icon-bounce');
+        }, 420);
+      }
+    }
+    // ------------------------------------------------------------------------------
+
+    // Mensaje corto (toast)
+    let _msgTimeout = null;
+    function mostrarMensajeLista(text) {
+      clearTimeout(_msgTimeout);
+      msgLista.textContent = text;
+      msgLista.classList.add('show');
+      _msgTimeout = setTimeout(() => {
+        msgLista.classList.remove('show');
+      }, 1800);
+    }
+
+    // Toggle Mi Lista: agrega o elimina el objeto en "favoritos"
+    function toggleLista() {
+      const favoritos = obtenerFavoritos();
+      const existe = favoritos.some(f => Number(f.id) === Number(SERIES_ID) && (f.type === "tv" || f.type === "series" || f.type === "serie"));
+
+      if (existe) {
+        // eliminar
+        const nuevos = favoritos.filter(f => !(Number(f.id) === Number(SERIES_ID) && (f.type === "tv" || f.type === "series" || f.type === "serie")));
+        guardarFavoritos(nuevos);
+        actualizarMiListaIcon();
+        mostrarMensajeLista('Eliminado de Favoritos');
+      } else {
+        // agregar - intentamos añadir info útil
+        const titulo = document.getElementById('title')?.textContent || 'Sin título';
+        const poster = window.__seriePosterPath || null; // si cargamos poster lo almacenamos en variable global
+        favoritos.push({ id: SERIES_ID, type: "tv", title: titulo, poster_path: poster, url: window.location.href });
+        guardarFavoritos(favoritos);
+        actualizarMiListaIcon();
+        mostrarMensajeLista('Agregado a Favoritos');
+      }
+
+      // opcional: si tu otra página escucha storage events o hace refresh, ya queda actualizado.
+    }
+
+    // Activar tabs (episodios / trailers)
+    function activarTab(tab) {
+      const activoClass = ['border-purple-500', 'text-purple-500'];
+      const inactivoClass = ['border-transparent', 'text-white'];
+
+      if (tab === 'episodios') {
+        btnEpisodios.classList.add(...activoClass);
+        btnEpisodios.classList.remove(...inactivoClass);
+        btnTrailers.classList.remove(...activoClass);
+        btnTrailers.classList.add(...inactivoClass);
+        contenidoEpisodios.classList.remove('hidden');
+        contenidoTrailers.classList.add('hidden');
+      } else {
+        btnTrailers.classList.add(...activoClass);
+        btnTrailers.classList.remove(...inactivoClass);
+        btnEpisodios.classList.remove(...activoClass);
+        btnEpisodios.classList.add(...inactivoClass);
+        contenidoTrailers.classList.remove('hidden');
+        contenidoEpisodios.classList.add('hidden');
+        cargarTrailers();
+      }
+    }
+
+    btnEpisodios.addEventListener('click', () => activarTab('episodios'));
+    btnTrailers.addEventListener('click', () => activarTab('trailers'));
+    btnTemporadas.addEventListener('click', () => listaTemporadas.classList.toggle('hidden'));
+    btnMiLista.addEventListener('click', toggleLista);
+
+    // Botón ver: ir a último visto o al primero
+    btnVer.addEventListener('click', () => {
+      const ultimo = leerUltimoVisto();
+      if (ultimo) {
+        irAReproducir(ultimo.temporada, ultimo.episodio);
+      } else {
+        irAReproducir(1,1);
+      }
+    });
+
+    function actualizarBotonVer() {
+      const ultimo = leerUltimoVisto();
+      if (!ultimo) {
+        btnVer.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Ver`;
+      } else {
+        if (ultimo.temporada > 1 || ultimo.episodio > 1) {
+          btnVer.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Continuar`;
+        } else {
+          btnVer.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Ver`;
+        }
+      }
+      lucide.createIcons();
+    }
+
+    function actualizarUltimoVistoTexto() {
+      const ultimo = leerUltimoVisto();
+      if (!ultimo) {
+        ultimoVistoDiv.textContent = '';
+        ultimoVistoDiv.classList.remove('show');
+        return;
+      }
+      ultimoVistoDiv.textContent = `Último episodio visto: Temporada ${ultimo.temporada}, Episodio ${ultimo.episodio}`;
+      ultimoVistoDiv.classList.add('show');
+    }
+
+    // Carga datos de la serie desde TMDB
+    async function cargarSerie() {
+      try {
+        const res = await fetch(`https://api.themoviedb.org/3/tv/${SERIES_ID}?api_key=${API_KEY}&language=es-ES`);
+        const data = await res.json();
+        document.getElementById('title').textContent = data.name;
+        document.getElementById('year').textContent = data.first_air_date?.slice(0, 4) || '---';
+        fechaEstreno = data.first_air_date || 'Fecha no disponible';
+        document.getElementById('seasons').textContent = `${data.number_of_seasons} temporada${data.number_of_seasons > 1 ? 's' : ''}`;
+        numeroTemporadas = data.number_of_seasons;
+
+        // guardar poster path globalmente para usar al agregar favorito (opcional)
+        if (data.poster_path) {
+          window.__seriePosterPath = data.poster_path;
+        }
+
+        const backdrop = document.getElementById('backdrop');
+        if (data.backdrop_path) {
+          const img = new Image();
+          img.src = `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
+          img.onload = () => {
+            backdrop.style.backgroundImage = `url(${img.src})`;
+            backdrop.classList.remove('image-loader');
+          };
+        }
+
+        const logoRes = await fetch(`https://api.themoviedb.org/3/tv/${SERIES_ID}/images?api_key=${API_KEY}`);
+        const logoData = await logoRes.json();
+        const logo = (logoData.logos || []).find(l => l.iso_639_1 === 'es') || (logoData.logos && logoData.logos[0]);
+        const logoEl = document.getElementById('logo');
+        if (logo) {
+          logoEl.src = `https://image.tmdb.org/t/p/original${logo.file_path}`;
+          logoEl.onload = () => {
+            logoEl.classList.remove('hidden');
+            document.getElementById('logo-container').classList.remove('image-loader');
+          };
+        } else {
+          document.getElementById('logo-container').style.display = 'none';
+        }
+
+        const castRes = await fetch(`https://api.themoviedb.org/3/tv/${SERIES_ID}/credits?api_key=${API_KEY}&language=es-ES`);
+        const castData = await castRes.json();
+        document.getElementById('cast').textContent = (castData.cast || []).slice(0, 4).map(a => a.name).join(', ') + '...';
+        document.getElementById('creators').textContent = (data.created_by || []).map(c => c.name).join(', ') || 'No disponible';
+        document.getElementById('genres').textContent = (data.genres || []).map(g => g.name).join(', ') || 'No disponible';
+        document.getElementById('overview').textContent = data.overview || 'Sin descripción disponible.';
+      } catch (err) {
+        console.error('Error cargando serie:', err);
+      }
+    }
+
+    async function cargarTemporadas() {
+      listaTemporadas.innerHTML = '';
+      for (let i = 1; i <= numeroTemporadas; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left px-3 py-2 hover:bg-gray-700';
+        btn.textContent = `Temporada ${i}`;
+        btn.onclick = async () => {
+          temporadaSeleccionada.textContent = `Temporada ${i}`;
+          listaTemporadas.classList.add('hidden');
+          await cargarEpisodios(i);
+          actualizarUltimoVistoTexto();
+          actualizarBotonVer();
+        };
+        listaTemporadas.appendChild(btn);
+      }
+    }
+
+    async function cargarEpisodios(numTemporada) {
+      try {
+        const res = await fetch(`https://api.themoviedb.org/3/tv/${SERIES_ID}/season/${numTemporada}?api_key=${API_KEY}&language=es-ES`);
+        const data = await res.json();
+        let html = '';
+
+        (data.episodes || []).forEach(ep => {
+          const tieneUrl = episodeUrls[numTemporada] && episodeUrls[numTemporada][ep.episode_number];
+          const tieneDescarga = episodeDownloadUrls[numTemporada] && episodeDownloadUrls[numTemporada][ep.episode_number];
+
+          html += `
+          <div class="flex items-start gap-3 mb-6 w-full rounded-lg text-left
+              ${tieneUrl ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}"
+            >
+            <button
+              class="flex-1 flex items-start gap-3 p-3 rounded-lg
+                ${tieneUrl ? 'bg-white/5 hover:bg-white/10' : 'bg-white/10'}"
+              ${tieneUrl ? `onclick="irAReproducir(${numTemporada}, ${ep.episode_number})"` : 'disabled'}
+              title="${tieneUrl ? 'Ver episodio' : 'Episodio no disponible'}"
+            >
+              <div class="relative w-24 h-16 flex-shrink-0 rounded overflow-hidden image-loader">
+                <img src="https://image.tmdb.org/t/p/w300${ep.still_path}" alt="${ep.name}" class="w-full h-full object-cover hidden" onload="this.classList.remove('hidden'); this.parentNode.classList.remove('image-loader');">
+                <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <i data-lucide="${tieneUrl ? 'play' : 'lock'}" class="w-5 h-5 text-white"></i>
+                </div>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <h3 class="text-white font-semibold text-sm text-ellipsis-2">${ep.episode_number}. ${ep.name}</h3>
+                    <p class="text-xs text-gray-300">${ep.runtime || '--'} min</p>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-300 mt-1 text-ellipsis-2">${ep.overview || 'Sin descripción disponible.'}</p>
+              </div>
+            </button>
+            <a
+              href="${tieneDescarga ? episodeDownloadUrls[numTemporada][ep.episode_number] : '#'}"
+              download
+              class="flex items-center px-3 text-white hover:text-green-400 ${tieneDescarga ? '' : 'download-disabled'}"
+              title="${tieneDescarga ? 'Descargar episodio' : 'Descarga no disponible'}"
+              ${tieneDescarga ? '' : 'aria-disabled="true"'}
+              >
+              <i data-lucide="download" class="w-5 h-5"></i>
+            </a>
+          </div>`;
+        });
+
+        contenidoEpisodios.innerHTML = html;
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Error cargando episodios:', err);
+      }
+    }
+
+    function irAReproducir(temporada, episodio) {
+      guardarUltimoVisto(temporada, episodio);
+      actualizarBotonVer();
+      actualizarUltimoVistoTexto();
+
+      const urlPersonalizada = episodeUrls[temporada]?.[episodio];
+      if (urlPersonalizada) {
+        window.location.href = urlPersonalizada;
+      } else {
+        window.location.href = `reproducir.html?temporada=${temporada}&episodio=${episodio}`;
+      }
+    }
+
+    async function cargarTrailers() {
+      try {
+        const res = await fetch(`https://api.themoviedb.org/3/tv/${SERIES_ID}/videos?api_key=${API_KEY}&language=es-ES`);
+        const data = await res.json();
+        let html = `<p class="mb-3 text-gray-400">Fecha de estreno: ${fechaEstreno}</p>`;
+        if (!data.results || data.results.length === 0) {
+          html += `<p>No hay vídeos disponibles.</p>`;
+        } else {
+          const grouped = {};
+          data.results.forEach(video => {
+            if (video.site === 'YouTube' || video.site === 'Vimeo') {
+              if (!grouped[video.type]) grouped[video.type] = [];
+              grouped[video.type].push(video);
+            }
+          });
+          for (const type in grouped) {
+            html += `<h4 class="text-xl font-semibold mb-2 mt-4">${type}</h4>`;
+            grouped[type].forEach(video => {
+              html += `
+                <div class="mb-6">
+                  <h5 class="text-lg font-semibold mb-2">${video.name}</h5>
+                  <div class="aspect-w-16 aspect-h-9">
+                    <iframe class="w-full rounded-lg" src="https://${video.site === 'YouTube' ? 'www.youtube.com/embed/' : 'player.vimeo.com/video/'}${video.key}" frameborder="0" allowfullscreen></iframe>
+                  </div>
+                </div>`;
+            });
+          }
+        }
+        contenidoTrailers.innerHTML = html;
+      } catch (err) {
+        console.error('Error cargando trailers:', err);
+      }
+    }
+
+    function mostrarPopupCalificar() {
+      const popup = document.getElementById('popupCalificar');
+      if (!popup) {
+        alert('Funcionalidad de calificar pendiente de implementar.');
+        return;
+      }
+      popup.classList.toggle('hidden');
+      if (!popup.classList.contains('hidden')) {
+        setTimeout(() => popup.classList.add('show'), 10);
+      } else {
+        popup.classList.remove('show');
+      }
+    }
+
+    // Función principal de carga
+    async function cargarTodo() {
+      await cargarSerie();
+      await cargarTemporadas();
+
+      let ultimo = leerUltimoVisto();
+      if (ultimo) {
+        temporadaSeleccionada.textContent = `Temporada ${ultimo.temporada}`;
+        await cargarEpisodios(ultimo.temporada);
+      } else {
+        temporadaSeleccionada.textContent = `Temporada 1`;
+        await cargarEpisodios(1);
+      }
+      actualizarBotonVer();
+      actualizarUltimoVistoTexto();
+      actualizarMiListaIcon();
+      lucide.createIcons();
+      document.querySelectorAll('.fade-in').forEach(el => el.classList.add('show'));
+    }
+
+    // Iniciar
+    cargarTodo();
+  </script>
+</body>
+</html>
