@@ -27,15 +27,24 @@
       outline: none;
       cursor: pointer;
       transition: box-shadow .12s ease, opacity .12s ease;
+      padding: 0; /* importante para consistencia del track */
+      margin: 0;
+      overflow: visible; /* permite thumbs grandes sin recorte en algunos navegadores */
     }
 
-    input[type=range].progress::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: transparent; }
+    /* track (WebKit) */
+    input[type=range].progress::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background: transparent;
+      -webkit-appearance: none;
+      appearance: none;
+    }
 
     /* Thumb por defecto (si no hay imagen) */
     input[type=range].progress::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      margin-top: -4px;
       width: 16px;
       height: 16px;
       border-radius: 50%;
@@ -46,16 +55,29 @@
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      margin-top: 0; /* manejado por script cuando se inyecta imagen */
+      position: relative;
     }
     input[type=range].progress:hover::-webkit-slider-thumb { transform: scale(1.12); }
 
-    input[type=range].progress::-moz-range-track { height: 8px; border-radius: 999px; background: transparent; }
+    /* Firefox track & thumb */
+    input[type=range].progress::-moz-range-track {
+      height: 8px;
+      border-radius: 999px;
+      background: transparent;
+    }
     input[type=range].progress::-moz-range-thumb {
-      width: 16px; height: 16px; border-radius: 50%; background: #ffffff; border: 3px solid #ff3b3b;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.6); transition: transform 0.12s ease, box-shadow 0.12s ease;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #ff3b3b;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      position: relative;
     }
 
     @media (max-width: 640px) {
@@ -85,13 +107,8 @@
     /* Asegura que el video ocupe el contenedor rotado */
     .force-landscape video { width: 100%; height: 100%; object-fit: cover; }
 
-    /* Utilidades para thumb avanzado (por si se necesita referencia visual en CSS) */
-    .thumb-ring {
-      display: inline-block;
-      border-radius: 50%;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-      overflow: hidden;
-    }
+    /* Utilidad para mantener la envoltura del thumb visible */
+    input[type=range].progress { z-index: 2; }
   </style>
 </head>
 <body class="bg-black w-screen h-screen overflow-hidden">
@@ -115,8 +132,8 @@
      - thumbImageSize: tamaño en px (ancho y alto) del thumb-imagen.
        Valores recomendados: 12-48.
   */
-  const thumbImageURL = "https://cdn-icons-png.flaticon.com/512/8745/8745230.png"; // Ejemplo: "https://i.imgur.com/ejemplo_transparente.png"
-  const thumbImageSize = 28; // px
+  const thumbImageURL = "https://cdn-icons-png.flaticon.com/512/8745/8745230.png"; // <-- PON AQUÍ TU IMAGEN TRANSPARENTE (ej. PNG/SVG). Deja "" para mantener diseño original.
+  const thumbImageSize = 28; // px (ajusta a tu gusto)
 </script>
 
 <div id="videoWrapper" class="w-screen h-screen fixed top-0 left-0 z-0">
@@ -496,46 +513,53 @@
 
     // ----------------------------
     // Aplicar imagen avanzada SIN FONDO al thumb si thumbImageURL está definida
+    // (inyecta CSS compatible y centrado; garantiza que el thumb se mueva correctamente)
     // ----------------------------
     try {
       if (typeof thumbImageURL === 'string' && thumbImageURL.trim() !== "") {
-        // track height (px) usado en CSS
+        // track height (px) usado en CSS (debe coincidir con la regla CSS: 8px)
         const trackHeight = 8;
         const thumbSize = Math.max(8, parseInt(thumbImageSize, 10) || 16); // mínimo 8px
-        // Ajuste vertical para centrar el thumb sobre el track
+        // Ajuste vertical: colocamos margin-top negativo para centrar el thumb sobre el track
         const marginTop = Math.round((trackHeight - thumbSize) / 2);
 
-        // Escape de comillas simples en la URL para inyectar en CSS
         const safeURL = thumbImageURL.replace(/'/g, "\\'");
 
-        // CSS inyectado:
-        // - background-image: tu imagen (transparente si la imagen lo es).
-        // - border: anillo rojo semi-opaco para mantener visibilidad sobre fondos oscuros.
-        // - mask/clip para asegurar forma circular y sin fondo visible.
+        // CSS a inyectar: incluye reglas para WebKit/Blink y Firefox.
+        // Importante: usamos -webkit-appearance: none y position: relative; overflow: visible.
         const css = `
+          /* Forzamos apariencia none y visibilidad del track y thumb */
+          input[type=range].progress { -webkit-appearance: none; appearance: none; background-clip: padding-box; }
+
           /* WebKit / Blink (Chrome, Edge, Safari) */
           input[type=range].progress::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
+            -webkit-appearance: none !important;
+            appearance: none !important;
             width: ${thumbSize}px !important;
             height: ${thumbSize}px !important;
-            margin-top: ${marginTop}px !important;
+            margin-top: ${marginTop}px !important; /* centrar verticalmente */
             border-radius: 50% !important;
             background-color: transparent !important;
             background-image: url('${safeURL}') !important;
             background-size: cover !important;
             background-position: center !important;
             background-repeat: no-repeat !important;
-            border: 2.6px solid rgba(255,59,59,0.95) !important; /* anillo rojo visible */
+            border: 2.6px solid rgba(255,59,59,0.95) !important; /* anillo rojo para visibilidad */
             box-shadow: 0 4px 10px rgba(0,0,0,0.6) !important;
-            overflow: hidden !important;
-            -webkit-mask-image: radial-gradient(circle, black 100%); /* garantiza recorte circular */
-            mask-image: radial-gradient(circle, black 100%);
+            overflow: visible !important;
+            position: relative !important;
+            transform: translateZ(0); /* fuerza rendering GPU para movimiento suave */
             transition: transform 0.12s ease !important;
           }
-
-          input[type=range].progress:hover::-webkit-slider-thumb { transform: scale(1.06) !important; }
           input[type=range].progress:active::-webkit-slider-thumb { transform: scale(0.98) !important; }
+          input[type=range].progress:hover::-webkit-slider-thumb { transform: scale(1.06) !important; }
+
+          /* Ensure the track is clickable and not covered by thumb */
+          input[type=range].progress::-webkit-slider-runnable-track {
+            height: ${trackHeight}px;
+            border-radius: 999px;
+            background: transparent;
+          }
 
           /* Firefox */
           input[type=range].progress::-moz-range-thumb {
@@ -549,19 +573,21 @@
             background-repeat: no-repeat !important;
             border: 2.6px solid rgba(255,59,59,0.95) !important;
             box-shadow: 0 4px 10px rgba(0,0,0,0.6) !important;
-            overflow: hidden !important;
+            overflow: visible !important;
+            position: relative !important;
             transition: transform 0.12s ease !important;
           }
           input[type=range].progress:hover::-moz-range-thumb { transform: scale(1.06) !important; }
           input[type=range].progress:active::-moz-range-thumb { transform: scale(0.98) !important; }
 
-          /* Accessibility: mantener foco visible sin romper la imagen */
+          /* Focus visible.
+             Use outline to keep accessibility but with subtle look so image isn't broken. */
           input[type=range].progress:focus-visible::-webkit-slider-thumb {
-            outline: 2px solid rgba(255,255,255,0.12) !important;
+            outline: 2px solid rgba(255,255,255,0.10) !important;
             outline-offset: 2px !important;
           }
           input[type=range].progress:focus-visible::-moz-range-thumb {
-            outline: 2px solid rgba(255,255,255,0.12) !important;
+            outline: 2px solid rgba(255,255,255,0.10) !important;
             outline-offset: 2px !important;
           }
         `;
@@ -569,9 +595,6 @@
         const styleTag = document.createElement('style');
         styleTag.innerHTML = css;
         document.head.appendChild(styleTag);
-
-        // (Opcional) si quieres que el poster sea la imagen por defecto cuando thumbImageURL esté vacío,
-        // podríamos auto-setear thumbImageURL = posterURL aquí, pero no lo hago automáticamente para respetar tu control.
       }
     } catch (e) {
       console.warn('No se pudo aplicar thumbImageURL:', e);
