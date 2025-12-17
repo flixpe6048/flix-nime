@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel Admin VIP</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-black text-white p-6">
+<h1 class="mb-6 text-3xl font-bold text-yellow-400">👑 Panel Admin VIP</h1>
+
+<div class="overflow-x-auto">
+<table class="w-full border border-gray-800 rounded-xl overflow-hidden">
+<thead class="bg-gray-900 text-gray-300">
+<tr>
+<th class="p-3 text-left">#</th>
+<th class="p-3 text-left">Email</th>
+<th class="p-3 text-left">Estado</th>
+<th class="p-3 text-left">Días VIP</th>
+<th class="p-3 text-left">Vence</th>
+<th class="p-3 text-center">Acción</th>
+</tr>
+</thead>
+<tbody id="users" class="divide-y divide-gray-800"></tbody>
+</table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyBztO843Y-ziCqIXnFnsgyGEiVVgLR2QnA",
+authDomain: "log-flixpe-vide.firebaseapp.com",
+projectId: "log-flixpe-vide",
+storageBucket: "log-flixpe-vide.firebasestorage.app",
+messagingSenderId: "523403789416",
+appId: "1:523403789416:web:60c3abd4148d9c5de7a7dd"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const usersEl = document.getElementById("users");
+
+onSnapshot(collection(db, "usuarios"), snap => {
+  usersEl.innerHTML = "";
+  let index = 1;
+  const now = new Date();
+
+  snap.forEach(docu=>{
+    const u = docu.data();
+    const vencido = u.vencimiento && new Date(u.vencimiento) < now;
+    if(vencido && u.estado==="activo") updateDoc(doc(db,"usuarios",docu.id),{estado:"pendiente"});
+
+    usersEl.innerHTML += `
+      <tr class="bg-gray-950">
+      <td class="p-3">${index++}</td>
+      <td class="p-3">${u.email}</td>
+      <td class="p-3"><span class="${u.estado==="activo"?"text-green-400":"text-yellow-400"} font-bold">${u.estado||"pendiente"}</span></td>
+      <td class="p-3"><input type="number" min="1" value="${u.diasVIP||30}" id="days-${docu.id}" class="w-20 rounded-lg bg-gray-800 border border-gray-700 p-1 text-center"></td>
+      <td class="p-3 text-gray-400">${u.vencimiento ? new Date(u.vencimiento).toLocaleDateString() : "-"}</td>
+      <td class="p-3 text-center">${
+        u.estado!=="activo"
+        ? `<button onclick="aprobar('${docu.id}')" class="rounded-lg bg-green-500 px-4 py-2 font-bold text-black hover:bg-green-600">Aceptar</button>`
+        : `<span class="text-green-400 font-bold">✔ Activo</span>`
+      }</td>
+      </tr>
+    `;
+  });
+});
+
+window.aprobar = async (id)=>{
+  const days = parseInt(document.getElementById(`days-${id}`).value);
+  const now = new Date();
+  now.setDate(now.getDate()+days);
+
+  await updateDoc(doc(db,"usuarios",id),{
+    estado:"activo",
+    diasVIP:days,
+    vencimiento:now.toISOString()
+  });
+  alert("Usuario activado correctamente ✅");
+};
+</script>
+</body>
+</html>
