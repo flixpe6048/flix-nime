@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cuenta en revisión</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-black px-4">
+<div class="max-w-md w-full rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center shadow-2xl">
+
+<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-yellow-400/20">
+<i data-lucide="hourglass" class="h-8 w-8 text-yellow-400"></i>
+</div>
+
+<h1 class="text-2xl font-bold text-yellow-400">Cuenta en espera</h1>
+<p class="mt-2 text-gray-400 text-sm">
+  Tu cuenta VIP está siendo revisada.<br>
+  Serás aceptado en breve.
+</p>
+
+<div class="mt-6 rounded-xl bg-gray-800 p-4">
+<p class="text-gray-400 text-sm">Estado:</p>
+<p id="status" class="text-yellow-400 font-bold">⏳ Pendiente</p>
+</div>
+
+<button id="logout"
+class="mt-6 w-full rounded-xl bg-red-500 py-2 font-bold text-white hover:bg-red-600 transition">
+Cerrar sesión
+</button>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyBztO843Y-ziCqIXnFnsgyGEiVVgLR2QnA",
+authDomain: "log-flixpe-vide.firebaseapp.com",
+projectId: "log-flixpe-vide",
+storageBucket: "log-flixpe-vide.firebasestorage.app",
+messagingSenderId: "523403789416",
+appId: "1:523403789416:web:60c3abd4148d9c5de7a7dd"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+onAuthStateChanged(auth, user => {
+  if(!user){ location.href = "registro.html"; return; }
+
+  const ref = doc(db, "usuarios", user.uid);
+  onSnapshot(ref, async snap=>{
+    if(!snap.exists()) return;
+
+    const data = snap.data();
+    const now = new Date();
+
+    // Auto desactivar si venció
+    if(data.vencimiento && new Date(data.vencimiento) < now && data.estado==="activo"){
+      await updateDoc(ref, {estado:"pendiente"});
+    }
+
+    if(data.estado==="activo"){
+      location.href="vip.html";
+    } else {
+      document.getElementById("status").textContent = "⏳ Pendiente";
+    }
+  });
+});
+
+document.getElementById("logout").onclick = () => signOut(auth);
+</script>
+
+<script>lucide.createIcons();</script>
+</body>
+</html>
